@@ -25,3 +25,37 @@ consequence_filtered_variants <- subset(mosaic_filtered_variants,
 
 ##Output filtered variants
 write.csv(consequence_filtered_variants, file = "filtered_variants.csv")
+
+###################################
+##Calculating covergae statistics##
+###################################
+
+##Calculate sequencing depth per target base
+for i in `cat bams.txt`; do
+	samtools depth -b mosaic_exons.bed /data/Alignments/CancerPanel_MPT_hg38.bwa/${i} > ${i}.cov
+done
+
+##Collate results
+ls *.cov > cov_files.txt
+for i in `cat cov_files.txt`; do
+  tr '\t' ',' < ${i} > ${i}.csv
+done
+
+touch mosaic_exons_cov.csv
+
+for i in `cat cov_files.txt`; do
+  cat ${i}.csv >> mosaic_exons_cov.csv
+done
+
+##R Script to calculate statistics (run in R studio)
+
+#Read in samtools depth output combined across samples
+mosaic_exons_cov <- read.csv("mosaic_exons_cov.csv", header = F)
+colnames(mosaic_exons_cov) <- c("chr", "base", "depth")
+
+#Calculate mean coverage
+mean_mosaic_exons_cov <- mean(mosaic_exons_cov$depth, na.rm = T)
+sd_mosaic_exons_cov <- sd(mosaic_exons_cov$depth, na.rm = T)
+
+##Calculate percentage bases covered at 200X or above
+mosaic_exons_cov_percent_at_200 <- (100/nrow(mosaic_exons_cov)) * (length(mosaic_exons_cov$depth[which(mosaic_exons_cov$depth > 199)]))
